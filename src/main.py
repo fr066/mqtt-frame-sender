@@ -30,13 +30,31 @@ MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
 
 FLAG_EXIT = False
+FILE_OPENED = False
+app = tk.Tk()
+app.title("Mqtt frame sender app")
+app.geometry("800x600+300+300")
+items = dir("tk")
+var = tk.StringVar(value=items)
 
 def open_file():
-    fin = filedialog.askopenfile(mode='r',title='Select a Task File')
+    global FILE_OPENED
+    global items
+    global var
+    fin = filedialog.askopenfile(mode='r',title='Select a File')
     if fin is not None:
+        
         f_list = fin.readlines()
-    for item in f_list:
-            msg_list.insert(tk.END, item)
+        FILE_OPENED = True
+        #items = dir(f_list)
+        
+        items.clear()
+        items = f_list
+        var.set(value=items)
+        print(items[0])
+    #for index, fstr in f_list:
+    #         items[index] = fstr
+    
     fin.close()
 
 def on_connect(client, userdata, flags, rc):
@@ -88,9 +106,8 @@ def connect_mqtt():
 def publish(client):
     msg_count = 0
     while not FLAG_EXIT:
-        msg_dict = {
-            'msg': msg_count
-        }
+        msg_list.activate(msg_count)
+        msg_dict = msg_list.get(msg_count)
         msg = json.dumps(msg_dict)
         if not client.is_connected():
             logging.error("publish: MQTT client is not connected!")
@@ -100,12 +117,14 @@ def publish(client):
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            print(f'Send `{msg}` to topic `{TOPIC}`')
+            pass
+            #print(f'Send `{msg}` to topic `{TOPIC}`')
         else:
             print(f'Failed to send message to topic {TOPIC}')
         msg_count += 1
         time.sleep(0.01)
-
+        if msg_count > msg_list.size():
+            msg_count = 0
 
 def run():
     if FLAG_EXIT:
@@ -116,10 +135,11 @@ def run():
     client = connect_mqtt()
     client.loop_start()
     time.sleep(0.01)
+    play_button["state"] = NORMAL
     tEvent.wait()
     if client.is_connected():
         submit_button["text"] = "Отключится"
-     
+        
         publish(client)
     else:
         client.loop_stop()
@@ -157,7 +177,7 @@ def on_submit():
         sAdr = entry.get()
         BROKER = sAdr
         mqttThread.start()
-    
+        
     if submit_button["text"] == "Отключится":
        global FLAG_EXIT
        FLAG_EXIT = True
@@ -170,24 +190,41 @@ def on_exit():
         time.sleep(0.5)
         app.destroy()
     
+def msg_select(event):
+    i = msg_list.curselection()[0]
+    item.set(items[i])
 
+def msg_update(event):
+    i = msg_list.curselection()[0]
+    items[i] = item.get()
+    var.set(items)
 
 tEvent = threading.Event()
-app = tk.Tk()
-app.title("Mqtt frame sender app")
-app.geometry("800x600+300+300")
+
+
+
+#var = tk.StringVar(value=items)
 
 mainframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
 mainframe.grid(row=0,column=0)
 open_button = ttk.Button(mainframe, text="Открыть", command=open_file)
 open_button.grid(row=0,column=0)
-msg_list = tk.Listbox(mainframe, width=60, height=20)
+msg_list = tk.Listbox(mainframe, width=88, height=30,listvariable=var)
 msg_list.grid(row=1,column=0)
+msg_list.bind('<<ListboxSelect>>', msg_select)
+item = tk.StringVar()
+
+
 yscroll = tk.Scrollbar(mainframe,command=msg_list.yview, orient=tk.VERTICAL)
 yscroll.grid(row=1, column=1, sticky=tk.N+tk.S)
 msg_list.configure(yscrollcommand=yscroll.set)
+entryEdit = tk.Entry(mainframe, textvariable=item, width=88)
+entryEdit.grid(row=2,column=0)
+entryEdit.bind('<Return>', msg_update)
+
 play_button = ttk.Button(mainframe, text="Отправить", command=play_file, )
-play_button.grid(row=2,column=0)
+play_button.grid(row=3,column=0)
+play_button["state"] = DISABLED
 leftframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
 leftframe.grid(row=0,column=1)
 label = ttk.Label(leftframe, text="Адресс сервера:")
