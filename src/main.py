@@ -28,13 +28,13 @@ FIRST_RECONNECT_DELAY = 1
 RECONNECT_RATE = 2
 MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
-
+MSG_LOOP = False
 FLAG_EXIT = False
 FILE_OPENED = False
 app = tk.Tk()
 app.title("Mqtt frame sender app")
-app.geometry("800x600+300+300")
-items = dir("tk")
+app.geometry("900x640+300+300")
+items = ["Файл не загружен"]
 var = tk.StringVar(value=items)
 
 def open_file():
@@ -51,10 +51,7 @@ def open_file():
         items.clear()
         items = f_list
         var.set(value=items)
-        print(items[0])
-    #for index, fstr in f_list:
-    #         items[index] = fstr
-    
+        
     fin.close()
 
 def on_connect(client, userdata, flags, rc):
@@ -104,6 +101,8 @@ def connect_mqtt():
 
     
 def publish(client):
+    global FLAG_EXIT
+    global MSG_LOOP
     msg_count = 0
     while not FLAG_EXIT:
         msg_list.activate(msg_count)
@@ -123,8 +122,11 @@ def publish(client):
             print(f'Failed to send message to topic {TOPIC}')
         msg_count += 1
         time.sleep(0.01)
-        if msg_count > msg_list.size():
-            msg_count = 0
+        if msg_count == msg_list.size():
+            if MSG_LOOP:
+                msg_count = 0
+            else:
+                FLAG_EXIT = True
 
 def run():
     if FLAG_EXIT:
