@@ -2,6 +2,7 @@ import json
 import logging
 import random
 import time
+from datetime import datetime
 import threading
 from tkinter import filedialog
 from tkinter import messagebox
@@ -13,10 +14,11 @@ from paho.mqtt import client as mqtt_client
 from threading import Thread
 
 
-BROKER = '127.0.0.1'
+BROKER = '192.168.1.129'
 PORT = 1883
 # mqtt topic
-TOPIC = "python-mqtt/tcp"
+MAIN_TOPIC = "python-mqtt/tcp"
+SEND_TOPIC = "python-mqtt/01"
 # client ID
 CLIENT_ID = f'python-mqtt-tcp-pub-sub-sender'
 
@@ -33,9 +35,37 @@ FLAG_EXIT = False
 FILE_OPENED = False
 app = tk.Tk()
 app.title("Mqtt frame sender app")
-app.geometry("900x640+300+300")
+app.geometry("800x740+200+200")
 items = ["Файл не загружен"]
 var = tk.StringVar(value=items)
+loop_var = tk.StringVar(value='0')
+
+
+
+def to_log(msg):
+    ltime = datetime.now().strftime('%H:%M:%S')
+    log_text.insert(tk.END, ltime + ": " + msg + '\n')
+    
+def update_tree(m_in):
+    if tree.exists(m_in["online"]["id"]):
+        tree.item(m_in["online"]["id"], tags="online")
+    else:
+        tree.insert("", m_in["online"]["id"], iid=m_in["online"]["id"], text="Контроллер #"+ str(m_in["online"]["id"]), open=False,tags="online")
+        for rob in m_in["online"]["robots"]:
+            tree.insert(m_in["online"]["id"], index=END, text=rob)
+    #app.after(19000,tree_offline)
+    
+def tree_offline():
+    tree.item(1,tags="offline")
+    tree.item(2,tags="offline")
+    tree.item(3,tags="offline")
+    app.after(59000,tree_offline)
+    
+def loop_cb_click():
+    if loop_var.get() == 1:
+        MSG_LOOP = True
+    else:
+        MSG_LOOP = False
 
 def open_file():
     global FILE_OPENED
@@ -49,7 +79,10 @@ def open_file():
         #items = dir(f_list)
         
         items.clear()
-        items = f_list
+        ff_list = [x.rstrip() for x in f_list]
+            
+            
+        items = ff_list
         var.set(value=items)
         
     fin.close()
@@ -57,11 +90,13 @@ def open_file():
 def on_connect(client, userdata, flags, rc):
     if rc == 0 and client.is_connected():
         print("Connected to MQTT Broker!")
-        client.subscribe(TOPIC)
+        to_log("Присоеденились к MQTT брокеру!")
+        client.subscribe(MAIN_TOPIC)
         submit_button["text"] = "Отключится"
     else:
         print(f'Failed to connect, return code {rc}')
-
+        to_log(f'Ошибка подключения, код возврата {rc}')
+    
 def on_disconnect(client, userdata, rc):
     logging.info("Disconnected with result code: %s", rc)
     reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
@@ -85,9 +120,20 @@ def on_disconnect(client, userdata, rc):
 
 
 def on_message(client, userdata, msg):
-    print(f'Received `{msg.payload.decode()}` from `{msg.topic}` topic')
-
-
+    #print(f'Received `{msg.payload.decode()}` from `{msg.topic}` topic')
+    to_log(f'Получено `{msg.payload.decode()}` от `{msg.topic}` топика')
+    m_decode = str(msg.payload.decode("utf-8", "ignore"))
+    #print(f"data type: {type(m_decode)}")
+    #print(f"data decoded: {m_decode}")
+    #print("Converting from Json to Object...")
+    m_in = json.loads(m_decode)
+    #print(f"converted data type: {type(m_in)}")
+    #print(f"converted data: {m_in}")
+    #print('\n')
+    if m_in["type"] == 'ping' or m_in["type"] == 'connected':
+        update_tree(m_in)
+        
+    
 def connect_mqtt():
     client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, CLIENT_ID)
     client.username_pw_set(USERNAME, PASSWORD)
@@ -107,21 +153,24 @@ def publish(client):
     while not FLAG_EXIT:
         msg_list.activate(msg_count)
         msg_dict = msg_list.get(msg_count)
-        msg = json.dumps(msg_dict)
+        
+        #msg = msg_dict.getBytes()
+        msg = json.dumps(msg_dict,ensure_ascii=False)
+        
         if not client.is_connected():
             logging.error("publish: MQTT client is not connected!")
             time.sleep(1)
             continue
-        result = client.publish(TOPIC, msg)
+        result = client.publish(SEND_TOPIC, msg)
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            pass
+            to_log(f'Отправлено: `{msg}` в топик `{SEND_TOPIC}`')
             #print(f'Send `{msg}` to topic `{TOPIC}`')
         else:
-            print(f'Failed to send message to topic {TOPIC}')
+            print(f'Failed to send message to topic {SEND_TOPIC}')
         msg_count += 1
-        time.sleep(0.01)
+        time.sleep(0.1)
         if msg_count == msg_list.size():
             if MSG_LOOP:
                 msg_count = 0
@@ -208,38 +257,60 @@ tEvent = threading.Event()
 #var = tk.StringVar(value=items)
 
 mainframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
-mainframe.grid(row=0,column=0)
+mainframe.grid(row=0,column=0,padx=4,pady=4)
 open_button = ttk.Button(mainframe, text="Открыть", command=open_file)
-open_button.grid(row=0,column=0)
+open_button.grid(row=0,column=0,padx=4,pady=4,sticky=E)
+loop_cb = ttk.Checkbutton(mainframe, text="Повторять", command=loop_cb_click)
+loop_cb.grid(row=0,column=0,padx=4,pady=4,sticky=W)
+
+
 msg_list = tk.Listbox(mainframe, width=88, height=30,listvariable=var)
 msg_list.grid(row=1,column=0)
 msg_list.bind('<<ListboxSelect>>', msg_select)
 item = tk.StringVar()
 
 
-yscroll = tk.Scrollbar(mainframe,command=msg_list.yview, orient=tk.VERTICAL)
+yscroll = ttk.Scrollbar(mainframe,command=msg_list.yview, orient=tk.VERTICAL)
 yscroll.grid(row=1, column=1, sticky=tk.N+tk.S)
 msg_list.configure(yscrollcommand=yscroll.set)
-entryEdit = tk.Entry(mainframe, textvariable=item, width=88)
+entryEdit = ttk.Entry(mainframe, textvariable=item, width=88)
 entryEdit.grid(row=2,column=0)
 entryEdit.bind('<Return>', msg_update)
 
 play_button = ttk.Button(mainframe, text="Отправить", command=play_file, )
 play_button.grid(row=3,column=0)
 play_button["state"] = DISABLED
+
+
+
 leftframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
 leftframe.grid(row=0,column=1)
-label = ttk.Label(leftframe, text="Адресс сервера:")
+
+label = ttk.Label(leftframe, text="Адресс MQTT сервера:")
 label.grid(row=1,column=0)
 
 entry = ttk.Entry(leftframe)
 entry.grid(row=2,column=0)
-entry.insert(0, "127.0.0.1")
+entry.insert(0, BROKER)
 
 submit_button = ttk.Button(leftframe, text="Подключится", command=on_submit)
 submit_button.grid(row=3,column=0)
+gstyle = ttk.Style()
+gstyle.configure("Treeview",
+                 fieldbackground="lightgreen",
+                 rowheight=25
+)
+tree = ttk.Treeview(leftframe)
+# установка заголовка
+tree.heading("#0", text="Подключенные устройства", anchor=NW)
+tree.tag_configure("online",foreground="green")
+tree.grid(row=4,column=0,sticky=NW)
 
-
+logframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
+logframe.grid(row=3,column=0,columnspan=3)
+log_text = tk.Text(logframe, width=96, height=8, bg="black", fg='lightgreen', wrap=WORD)
+log_text.bind("<Key>", lambda e: "break")
+log_text.pack()
 exit_button = ttk.Button(leftframe, text="Выход", command=on_exit)
 exit_button.grid(row=10,column=0,padx=10,pady=10)
 
