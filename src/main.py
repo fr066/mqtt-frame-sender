@@ -46,20 +46,7 @@ def to_log(msg):
     ltime = datetime.now().strftime('%H:%M:%S')
     log_text.insert(tk.END, ltime + ": " + msg + '\n')
     
-def update_tree(m_in):
-    if tree.exists(m_in["online"]["id"]):
-        tree.item(m_in["online"]["id"], tags="online")
-    else:
-        tree.insert("", m_in["online"]["id"], iid=m_in["online"]["id"], text="Контроллер #"+ str(m_in["online"]["id"]), open=False,tags="online")
-        for rob in m_in["online"]["robots"]:
-            tree.insert(m_in["online"]["id"], index=END, text=rob)
-    #app.after(19000,tree_offline)
-    
-def tree_offline():
-    tree.item(1,tags="offline")
-    tree.item(2,tags="offline")
-    tree.item(3,tags="offline")
-    app.after(59000,tree_offline)
+
     
 def loop_cb_click():
     if loop_var.get() == 1:
@@ -117,7 +104,22 @@ def on_disconnect(client, userdata, rc):
     logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
     global FLAG_EXIT
     FLAG_EXIT = True
-
+    
+def update_tree(m_in):
+    if tree.exists(m_in["online"]["id"]):
+        tree.item(m_in["online"]["id"], tags="online")
+    else:
+        tree.insert("", m_in["online"]["id"], iid=m_in["online"]["id"], text="Контроллер #"+ str(m_in["online"]["id"]), open=False,tags="online")
+        for rob in m_in["online"]["robots"]:
+            tree.insert(m_in["online"]["id"], index=END, text=rob)
+    app.after(14950,tree_offline)
+    
+def tree_offline():
+    for k in tree.get_children(""):
+        tree.item(k,tags="offline")
+        
+    #tree.item(2,tags="offline")
+    #app.after(59000,tree_offline)
 
 def on_message(client, userdata, msg):
     #print(f'Received `{msg.payload.decode()}` from `{msg.topic}` topic')
@@ -130,7 +132,9 @@ def on_message(client, userdata, msg):
     #print(f"converted data type: {type(m_in)}")
     #print(f"converted data: {m_in}")
     #print('\n')
-    if m_in["type"] == 'ping' or m_in["type"] == 'connected':
+    if m_in["type"] == 'ping':
+        update_tree(m_in)
+    if m_in["type"] == 'connect':
         update_tree(m_in)
         
     
@@ -152,10 +156,9 @@ def publish(client):
     msg_count = 0
     while not FLAG_EXIT:
         msg_list.activate(msg_count)
-        msg_dict = msg_list.get(msg_count)
-        
-        #msg = msg_dict.getBytes()
-        msg = json.dumps(msg_dict,ensure_ascii=False)
+        msg = msg_list.get(msg_count) 
+
+        #msg = json.dumps(msg_dict).strip('\"') #remove first and last commas
         
         if not client.is_connected():
             logging.error("publish: MQTT client is not connected!")
