@@ -17,10 +17,10 @@ from threading import Thread
 BROKER = '192.168.1.129'
 PORT = 1883
 # mqtt topic
-MAIN_TOPIC = "python-mqtt/tcp"
-SEND_TOPIC = "python-mqtt/01"
+MAIN_TOPIC = "FV-robotics-mqtt/tcp"
+SEND_TOPIC = "FV-robotics-mqtt/01"
 # client ID
-CLIENT_ID = f'python-mqtt-tcp-pub-sub-sender'
+CLIENT_ID = f'FV-robotics-mqtt-tcp-sender'
 
 USERNAME = ''
 PASSWORD = ''
@@ -45,7 +45,7 @@ loop_var = tk.StringVar(value='0')
 def to_log(msg):
     ltime = datetime.now().strftime('%H:%M:%S')
     log_text.insert(tk.END, ltime + ": " + msg + '\n')
-    
+    log_text.see(tk.END)
 
     
 def loop_cb_click():
@@ -171,9 +171,9 @@ def publish(client):
             to_log(f'Отправлено: `{msg}` в топик `{SEND_TOPIC}`')
             #print(f'Send `{msg}` to topic `{TOPIC}`')
         else:
-            print(f'Failed to send message to topic {SEND_TOPIC}')
+            print(f'Failed to send message to topic `{SEND_TOPIC}`')
         msg_count += 1
-        time.sleep(0.1)
+        time.sleep(0.02)
         if msg_count == msg_list.size():
             if MSG_LOOP:
                 msg_count = 0
