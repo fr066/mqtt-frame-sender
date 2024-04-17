@@ -18,7 +18,9 @@ BROKER = '192.168.1.129'
 PORT = 1883
 # mqtt topic
 MAIN_TOPIC = "FV-robotics-mqtt/tcp"
-SEND_TOPIC = "FV-robotics-mqtt/01"
+SEND_TOPIC = "FV-robotics-mqtt/"
+SEND_TOPIC1 = "FV-robotics-mqtt/01"
+SEND_TOPIC2 = "FV-robotics-mqtt/02"
 # client ID
 CLIENT_ID = f'FV-robotics-mqtt-tcp-sender'
 
@@ -157,21 +159,45 @@ def publish(client):
     while not FLAG_EXIT:
         msg_list.activate(msg_count)
         msg = msg_list.get(msg_count) 
-
-        #msg = json.dumps(msg_dict).strip('\"') #remove first and last commas
-        
+        new_msg = []  #BAD CODE !!!! - need rewrite 
+        jmsg = json.loads(msg)  
+        jmsg2 = json.loads(msg)
+        if jmsg["type"] == "frame":
+            
+            #msg = json.dumps(msg_dict).strip('\"') #remove first and last commas
+           
+            
+            jmsg["angles"].pop()
+            jmsg["angles"].pop()
+            jmsg["angles"].pop()
+            jmsg["angles"].pop()
+            jmsg["angles"].pop()
+            jmsg["angles"].pop()
+            del jmsg2["angles"][0]
+            del jmsg2["angles"][0]
+            del jmsg2["angles"][0]
+            del jmsg2["angles"][0]
+            del jmsg2["angles"][0]
+            del jmsg2["angles"][0]
+            
+            #to_log(json.dumps(jmsg))
+            #to_log(json.dumps(jmsg2))
         if not client.is_connected():
             logging.error("publish: MQTT client is not connected!")
             time.sleep(1)
             continue
-        result = client.publish(SEND_TOPIC, msg)
+       
+        result = client.publish(SEND_TOPIC1, json.dumps(jmsg))
+        client.publish(SEND_TOPIC2, json.dumps(jmsg2))
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            to_log(f'Отправлено: `{msg}` в топик `{SEND_TOPIC}`')
+            to_log(f'Отправлено: `{json.dumps(jmsg)}` в топик `{SEND_TOPIC1}`')
+            to_log(f'Отправлено: `{json.dumps(jmsg2)}` в топик `{SEND_TOPIC2}`')
             #print(f'Send `{msg}` to topic `{TOPIC}`')
         else:
-            print(f'Failed to send message to topic `{SEND_TOPIC}`')
+            to_log(f'Failed to send message to topic `{SEND_TOPIC1}`')
+            
         msg_count += 1
         time.sleep(0.02)
         if msg_count == msg_list.size():
@@ -179,6 +205,7 @@ def publish(client):
                 msg_count = 0
             else:
                 FLAG_EXIT = True
+    play_button()           
 
 def run():
     if FLAG_EXIT:
