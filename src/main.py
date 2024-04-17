@@ -46,7 +46,7 @@ loop_var = tk.StringVar(value='0')
 
 def to_log(msg):
     ltime = datetime.now().strftime('%H:%M:%S')
-    log_text.insert(tk.END, ltime + ": " + msg + '\n')
+    log_text.insert(tk.END, ltime + "| " + msg + '\n')
     log_text.see(tk.END)
 
     
@@ -179,7 +179,7 @@ def publish(client):
             del jmsg2["angles"][0]
             del jmsg2["angles"][0]
             del jmsg2["angles"][0]
-            
+        
             #to_log(json.dumps(jmsg))
             #to_log(json.dumps(jmsg2))
         if not client.is_connected():
@@ -205,7 +205,7 @@ def publish(client):
                 msg_count = 0
             else:
                 FLAG_EXIT = True
-    play_button()           
+                play_file()
 
 def run():
     if FLAG_EXIT:
