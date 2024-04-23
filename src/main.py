@@ -14,7 +14,7 @@ from paho.mqtt import client as mqtt_client
 from threading import Thread
 
 
-BROKER = '192.168.1.129'
+BROKER = '192.168.3.126'
 PORT = 1883
 # mqtt topic
 MAIN_TOPIC = "FV-robotics-mqtt/tcp"
@@ -159,35 +159,33 @@ def publish(client):
     while not FLAG_EXIT:
         msg_list.activate(msg_count)
         msg = msg_list.get(msg_count) 
-        new_msg = []  #BAD CODE !!!! - need rewrite 
+        if msg == "":
+            break
+        new_msg = [] 
+        frames2 = False 
         jmsg = json.loads(msg)  
         jmsg2 = json.loads(msg)
+        if jmsg["type"] == "play":
+            time.sleep(0.1)
         if jmsg["type"] == "frame":
-            
+            #BAD CODE !!!! - need rewrite 
             #msg = json.dumps(msg_dict).strip('\"') #remove first and last commas
            
+            for i in range(6):
+                jmsg["angles"].pop()
+                del jmsg2["angles"][0]
             
-            jmsg["angles"].pop()
-            jmsg["angles"].pop()
-            jmsg["angles"].pop()
-            jmsg["angles"].pop()
-            jmsg["angles"].pop()
-            jmsg["angles"].pop()
-            del jmsg2["angles"][0]
-            del jmsg2["angles"][0]
-            del jmsg2["angles"][0]
-            del jmsg2["angles"][0]
-            del jmsg2["angles"][0]
-            del jmsg2["angles"][0]
         
+            
             #to_log(json.dumps(jmsg))
             #to_log(json.dumps(jmsg2))
         if not client.is_connected():
             logging.error("publish: MQTT client is not connected!")
             time.sleep(1)
             continue
-       
+        
         result = client.publish(SEND_TOPIC1, json.dumps(jmsg))
+        
         client.publish(SEND_TOPIC2, json.dumps(jmsg2))
         # result: [0, 1]
         status = result[0]
@@ -199,13 +197,15 @@ def publish(client):
             to_log(f'Failed to send message to topic `{SEND_TOPIC1}`')
             
         msg_count += 1
+        progress["value"] = float(msg_count)
         time.sleep(0.02)
         if msg_count == msg_list.size():
             if MSG_LOOP:
                 msg_count = 0
             else:
                 FLAG_EXIT = True
-                play_file()
+                tEvent.clear()
+                play_button["text"] = "Отправить"
 
 def run():
     if FLAG_EXIT:
@@ -250,6 +250,7 @@ def play_file():
        play_button["text"] = "Отправить"
     else:
         tEvent.set()
+        progress["maximum"] = float(msg_list.size())
         play_button["text"] = "Остановить"
     
 def on_submit():
@@ -335,7 +336,8 @@ tree = ttk.Treeview(leftframe)
 tree.heading("#0", text="Подключенные устройства", anchor=NW)
 tree.tag_configure("online",foreground="green")
 tree.grid(row=4,column=0,sticky=NW)
-
+progress = ttk.Progressbar(leftframe, orient=HORIZONTAL, length=200, mode='determinate')
+progress.grid(row=5,column=0,sticky=NW)
 logframe = ttk.Frame(borderwidth=1, relief=SOLID, padding=[8, 10])
 logframe.grid(row=3,column=0,columnspan=3)
 log_text = tk.Text(logframe, width=96, height=8, bg="black", fg='lightgreen', wrap=WORD)
