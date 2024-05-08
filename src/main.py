@@ -6,7 +6,7 @@ from datetime import datetime
 import threading
 from tkinter import filedialog
 from tkinter import messagebox
-
+import tkinter.font as tkFont
 import tkinter as tk
 from tkinter import *
 from tkinter import ttk 
@@ -110,11 +110,16 @@ def on_disconnect(client, userdata, rc):
 def update_tree(m_in):
     if tree.exists(m_in["online"]["id"]):
         tree.item(m_in["online"]["id"], tags="online")
+         
     else:
         tree.insert("", m_in["online"]["id"], iid=m_in["online"]["id"], text="Контроллер #"+ str(m_in["online"]["id"]), open=False,tags="online")
         for rob in m_in["online"]["robots"]:
             tree.insert(m_in["online"]["id"], index=END, text=rob)
-    app.after(14950,tree_offline)
+    #app.after(14950,tree_item_offline(m_in["online"]["id"]))     
+    app.after(14150,tree_offline)
+    
+def tree_item_offline(itm):
+    tree.item(itm,tags="offline")
     
 def tree_offline():
     for k in tree.get_children(""):
@@ -174,8 +179,6 @@ def publish(client):
             for i in range(6):
                 jmsg["angles"].pop()
                 del jmsg2["angles"][0]
-            
-        
             
             #to_log(json.dumps(jmsg))
             #to_log(json.dumps(jmsg2))
@@ -263,6 +266,7 @@ def on_submit():
     if submit_button["text"] == "Отключится":
        global FLAG_EXIT
        FLAG_EXIT = True
+       
        tEvent.clear()
 
 def on_exit():
@@ -282,8 +286,6 @@ def msg_update(event):
     var.set(items)
 
 tEvent = threading.Event()
-
-
 
 #var = tk.StringVar(value=items)
 
@@ -329,12 +331,16 @@ submit_button.grid(row=3,column=0)
 gstyle = ttk.Style()
 gstyle.configure("Treeview",
                  fieldbackground="lightgreen",
+                 background=[('selected', '#ffffff')], 
+                 
                  rowheight=25
 )
-tree = ttk.Treeview(leftframe)
+tree = ttk.Treeview(leftframe,selectmode='none')
 # установка заголовка
 tree.heading("#0", text="Подключенные устройства", anchor=NW)
+
 tree.tag_configure("online",foreground="green")
+
 tree.grid(row=4,column=0,sticky=NW)
 progress = ttk.Progressbar(leftframe, orient=HORIZONTAL, length=200, mode='determinate')
 progress.grid(row=5,column=0,sticky=NW)
